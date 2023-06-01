@@ -79,3 +79,24 @@ bool send_qp(struct ibv_qp *queue_pair) {
              ? true
              : false;
 }
+
+void poll(struct ibv_cq *cq) {
+  struct ibv_wc wc;
+  int num_comp;
+
+  uint32_t tries = 0;
+  do {
+    num_comp = ibv_poll_cq(cq, 1, &wc);
+    tries++;
+  } while (num_comp == 0 && tries < 100000);
+
+  if (num_comp < 0) {
+    fprintf(stderr, "ibv_poll_cq() failed\n");
+  }
+
+  /* verify the completion status */
+  if (wc.status != IBV_WC_SUCCESS) {
+    fprintf(stderr, "Failed status %s (%d) for wr_id %d\n",
+            ibv_wc_status_str(wc.status), wc.status, (int)wc.wr_id);
+  }
+}

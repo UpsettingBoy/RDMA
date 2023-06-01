@@ -105,6 +105,7 @@ int main(int argc, char const *argv[]) {
   // Create QP
   struct ibv_qp_init_attr qp_desc = {.send_cq = cq,
                                      .recv_cq = cq,
+                                     .sq_sig_all = 0,
                                      .cap = {.max_send_wr = 1,
                                              .max_recv_wr = 1,
                                              .max_send_sge = 1,
@@ -120,7 +121,6 @@ int main(int argc, char const *argv[]) {
 
   struct ibv_sge sg;
   struct ibv_send_wr wr;
-  struct ibv_send_wr *bad_wr;
 
   // My memory
   memset(&sg, 0, sizeof(sg));
@@ -138,15 +138,14 @@ int main(int argc, char const *argv[]) {
   wr.wr.rdma.remote_addr = (uintptr_t)peer_data.peer_mr.peer_addr;
   wr.wr.rdma.rkey = peer_data.peer_mr.peer_rkey;
 
-  ibv_post_send(qp, &wr, &bad_wr);
+  ibv_post_send(qp, &wr, NULL);
 
   printf("RDMA write of %d is done\n", *msg);
 
   struct ibv_wc wc;
-  int result;
-  do {
-    result = ibv_poll_cq(cq, 1, &wc);
-  } while (result == 0);
+  int num_comp;
+
+  poll(cq);
 
   printf("Clean-up remaining\n");
 

@@ -86,6 +86,7 @@ int main(int argc, char const *argv[]) {
   // Create QP
   struct ibv_qp_init_attr qp_desc = {.send_cq = cq,
                                      .recv_cq = cq,
+                                     .sq_sig_all = 0,
                                      .cap = {.max_send_wr = 1,
                                              .max_recv_wr = 1,
                                              .max_send_sge = 1,
@@ -98,18 +99,10 @@ int main(int argc, char const *argv[]) {
   init_qp(qp);
   recv_qp(qp, peer_data);
 
-  uint8_t completed_wcs = 0;
-
   struct ibv_wc wc;
-  int result;
-  do {
-    result = ibv_poll_cq(cq, 1, &wc);
-    if (result > 0) {
-      printf("Current result = %d\n", result);
-      completed_wcs++;
-    }
+  int num_comp;
 
-  } while (completed_wcs < 1);
+  poll(cq);
 
   printf("RDMA memory read is: %d\n", *msg);
 
