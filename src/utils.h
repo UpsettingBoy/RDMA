@@ -8,17 +8,22 @@
 const uint16_t PORT = 1710;
 const int32_t HCA_PORT = 1;
 
-struct ib_mr {
-  void *peer_addr;
-  size_t peer_len;
-  uint32_t peer_lkey;
-  uint32_t peer_rkey;
+struct ub_mr {
+  uintptr_t addr;
+  size_t len;
+  uint32_t lkey;
+  uint32_t rkey;
 };
 
-struct ib_qp_data {
-  uint16_t peer_local_id;
-  uint32_t peer_qp_number;
-  struct ib_mr peer_mr;
+struct ub_qp {
+  uint16_t local_id;
+  uint32_t qp_number;
+  uint32_t num_mrs;
+};
+
+struct ub_pack {
+  struct ub_qp qp;
+  struct ub_mr *mrs;
 };
 
 bool init_qp(struct ibv_qp *qp) {
@@ -37,7 +42,7 @@ bool init_qp(struct ibv_qp *qp) {
              : false;
 }
 
-bool recv_qp(struct ibv_qp *qp, struct ib_qp_data peer_data) {
+bool recv_qp(struct ibv_qp *qp, struct ub_qp peer_data) {
   struct ibv_qp_attr rtr_attr;
   memset(&rtr_attr, 0, sizeof(rtr_attr));
   rtr_attr.qp_state = IBV_QPS_RTR;
@@ -50,8 +55,8 @@ bool recv_qp(struct ibv_qp *qp, struct ib_qp_data peer_data) {
   rtr_attr.ah_attr.src_path_bits = 0;
   rtr_attr.ah_attr.port_num = HCA_PORT;
 
-  rtr_attr.dest_qp_num = peer_data.peer_qp_number;
-  rtr_attr.ah_attr.dlid = peer_data.peer_local_id;
+  rtr_attr.dest_qp_num = peer_data.qp_number;
+  rtr_attr.ah_attr.dlid = peer_data.local_id;
 
   return ibv_modify_qp(qp, &rtr_attr,
                        IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
