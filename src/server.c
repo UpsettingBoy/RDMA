@@ -80,8 +80,13 @@ struct ib_qp_data share_conn_details(struct ibv_qp *local_qp,
 }
 
 int main(int argc, char const *argv[]) {
-  uint32_t num_msgs = 1;
-  uint32_t msg_size = 1; // Number of bytes each message has
+  if (argc != 3) {
+    printf("Run <number messages> <message bytes size>\n");
+    exit(-1);
+  }
+
+  uint32_t num_msgs = atoi(argv[1]);
+  uint32_t msg_size = atoi(argv[2]); // Number of bytes each message has2
 
   struct ibv_device **devices = ibv_get_device_list(NULL);
   struct ibv_context *ctx = ibv_open_device(devices[0]);

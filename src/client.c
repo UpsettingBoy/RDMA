@@ -56,13 +56,13 @@ struct ib_qp_data share_conn_details(const char *server_ip,
 }
 
 int main(int argc, char const *argv[]) {
-  if (argc != 2) {
-    printf("Introduce server IP\n");
+  if (argc != 4) {
+    printf("Run <server IP> <number messages> <message bytes size>\n");
     exit(-1);
   }
 
-  uint32_t num_msgs = 1;
-  uint32_t msg_size = 1; // Number of bytes each message has
+  uint32_t num_msgs = atoi(argv[2]);
+  uint32_t msg_size = atoi(argv[3]); // Number of bytes each message has
 
   struct ibv_device **devices = ibv_get_device_list(NULL);
   struct ibv_context *ctx = ibv_open_device(devices[0]);
