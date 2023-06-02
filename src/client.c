@@ -61,6 +61,9 @@ int main(int argc, char const *argv[]) {
     exit(-1);
   }
 
+  uint32_t num_msgs = 1;
+  uint32_t msg_size = 1; // Number of bytes each message has
+
   struct ibv_device **devices = ibv_get_device_list(NULL);
   struct ibv_context *ctx = ibv_open_device(devices[0]);
 
@@ -73,13 +76,13 @@ int main(int argc, char const *argv[]) {
   struct ibv_pd *domain = ibv_alloc_pd(ctx);
 
   // Register memory of RDMA
-  uint32_t msg_bytes = 1 * sizeof(uint8_t);
-  uint8_t *msg = malloc(msg_bytes);
+  uint32_t msg_bytes = num_msgs * msg_size * sizeof(uint8_t);
+  uint8_t *msgs = malloc(msg_bytes);
+  memset(msgs, 0xAF, msg_bytes);
 
-  memset(msg, 0, msg_bytes);
-
-  struct ibv_mr *memory = ibv_reg_mr(
-      domain, msg, msg_bytes, IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE);
+  struct ibv_mr *memory =
+      ibv_reg_mr(domain, msgs, msg_bytes,
+                 IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE);
 
   // Create CQ
   struct ibv_cq *cq = ibv_create_cq(ctx, 1, NULL, NULL, 0);
@@ -88,7 +91,7 @@ int main(int argc, char const *argv[]) {
                                      .recv_cq = cq,
                                      .sq_sig_all = 0,
                                      .cap = {.max_send_wr = 1,
-                                             .max_recv_wr = 1,
+                                             .max_recv_wr = num_msgs,
                                              .max_send_sge = 1,
                                              .max_recv_sge = 1},
                                      .qp_type = IBV_QPT_RC};
@@ -104,7 +107,7 @@ int main(int argc, char const *argv[]) {
 
   poll(cq);
 
-  printf("RDMA memory read is: %d\n", *msg);
+  printf("RDMA memory read is: %d\n", *msgs);
 
   printf("Clean-up remaining\n");
 

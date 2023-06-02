@@ -80,6 +80,8 @@ struct ib_qp_data share_conn_details(struct ibv_qp *local_qp,
 }
 
 int main(int argc, char const *argv[]) {
+  uint32_t num_msgs = 1;
+  uint32_t msg_size = 1; // Number of bytes each message has
 
   struct ibv_device **devices = ibv_get_device_list(NULL);
   struct ibv_context *ctx = ibv_open_device(devices[0]);
@@ -93,12 +95,12 @@ int main(int argc, char const *argv[]) {
   struct ibv_pd *domain = ibv_alloc_pd(ctx);
 
   // Register memory of RDMA
-  uint32_t msg_bytes = 1 * sizeof(uint8_t);
-  uint8_t *msg = malloc(msg_bytes);
-  memset(msg, 7, msg_bytes);
+  uint32_t msg_bytes = num_msgs * msg_size * sizeof(uint8_t);
+  uint8_t *msgs = malloc(msg_bytes);
+  memset(msgs, 0xAF, msg_bytes);
 
-  struct ibv_mr *memory = ibv_reg_mr(
-      domain, msg, msg_bytes, IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE);
+  struct ibv_mr *memory =
+      ibv_reg_mr(domain, msgs, msg_bytes, IBV_ACCESS_LOCAL_WRITE);
 
   // Create CQ
   struct ibv_cq *cq = ibv_create_cq(ctx, 1, NULL, NULL, 0);
@@ -106,7 +108,7 @@ int main(int argc, char const *argv[]) {
   struct ibv_qp_init_attr qp_desc = {.send_cq = cq,
                                      .recv_cq = cq,
                                      .sq_sig_all = 0,
-                                     .cap = {.max_send_wr = 1,
+                                     .cap = {.max_send_wr = num_msgs,
                                              .max_recv_wr = 1,
                                              .max_send_sge = 1,
                                              .max_recv_sge = 1},
@@ -120,7 +122,7 @@ int main(int argc, char const *argv[]) {
   send_qp(qp);
 
   struct ibv_sge sg;
-  struct ibv_send_wr wr;
+  struct ibv_send_wr *wr_sends = calloc(num_msgs, sizeof(struct ibv_send_wr));
 
   // My memory
   memset(&sg, 0, sizeof(sg));
@@ -128,19 +130,22 @@ int main(int argc, char const *argv[]) {
   sg.length = memory->length;
   sg.lkey = memory->lkey;
 
-  // RDMA peer memory
-  memset(&wr, 0, sizeof(wr));
-  wr.wr_id = 0;
-  wr.sg_list = &sg;
-  wr.num_sge = 1;
-  wr.opcode = IBV_WR_RDMA_WRITE;
-  wr.send_flags = IBV_SEND_SIGNALED;
-  wr.wr.rdma.remote_addr = (uintptr_t)peer_data.peer_mr.peer_addr;
-  wr.wr.rdma.rkey = peer_data.peer_mr.peer_rkey;
+  for (size_t i = 0; i < num_msgs; i++) {
+    // RDMA peer memory
+    wr_sends[i].wr_id = i;
+    wr_sends[i].next = (i == num_msgs - 1) ? NULL : wr_sends + i + 1;
+    wr_sends[i].sg_list = &sg;
+    wr_sends[i].num_sge = 1;
+    wr_sends[i].opcode = IBV_WR_RDMA_WRITE;
+    wr_sends[i].send_flags = IBV_SEND_SIGNALED;
+    wr_sends[i].wr.rdma.remote_addr =
+        (uintptr_t)(peer_data.peer_mr.peer_addr + (i * msg_bytes));
+    wr_sends[i].wr.rdma.rkey = peer_data.peer_mr.peer_rkey;
+  }
 
-  ibv_post_send(qp, &wr, NULL);
+  ibv_post_send(qp, wr_sends, NULL);
 
-  printf("RDMA write of %d is done\n", *msg);
+  printf("RDMA write of %d is done\n", *msgs);
 
   struct ibv_wc wc;
   int num_comp;
