@@ -107,9 +107,9 @@ int main(int argc, char const *argv[]) {
 
   poll(cq);
 
-  for (size_t i = 0; i < num_msgs; i++) {
-    printf("RDMA memory[%d] read is: %d\n", i, msgs[i]);
-  }
+  //   for (size_t i = 0; i < num_msgs; i++) {
+  //     printf("RDMA memory[%d] read is: %d\n", i, msgs[i]);
+  //   }
 
   printf("Clean-up remaining\n");
 

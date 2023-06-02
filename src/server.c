@@ -148,14 +148,13 @@ int main(int argc, char const *argv[]) {
     wr_sends[i].wr.rdma.rkey = peer_data.peer_mr.peer_rkey;
   }
 
+  clock_t start = clock();
   ibv_post_send(qp, wr_sends, NULL);
-
-  printf("RDMA write of %d is done\n", *msgs);
-
-  struct ibv_wc wc;
-  int num_comp;
-
   poll(cq);
+  clock_t end = clock();
+  float seconds = (float)(end - start) / CLOCKS_PER_SEC;
+
+  printf("RDMA write of %ds took %0.5lf s\n", *msgs, seconds);
 
   printf("Clean-up remaining\n");
 
