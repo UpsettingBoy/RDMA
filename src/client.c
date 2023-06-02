@@ -93,7 +93,7 @@ int main(int argc, char const *argv[]) {
                                      .cap = {.max_send_wr = 1,
                                              .max_recv_wr = num_msgs,
                                              .max_send_sge = 1,
-                                             .max_recv_sge = 1},
+                                             .max_recv_sge = num_msgs},
                                      .qp_type = IBV_QPT_RC};
   struct ibv_qp *qp = ibv_create_qp(domain, &qp_desc);
 
@@ -102,14 +102,26 @@ int main(int argc, char const *argv[]) {
   init_qp(qp);
   recv_qp(qp, peer_data);
 
-  struct ibv_wc wc;
-  int num_comp;
-
   poll(cq);
 
-  //   for (size_t i = 0; i < num_msgs; i++) {
-  //     printf("RDMA memory[%d] read is: %d\n", i, msgs[i]);
-  //   }
+  //   send_qp(qp);
+
+  //   struct ibv_sge sg;
+  //   struct ibv_send_wr wr;
+
+  //   memset(&sg, 0, sizeof(sg));
+  //   sg.addr = (uintptr_t)memory->addr;
+  //   sg.length = memory->length;
+  //   sg.lkey = memory->lkey;
+
+  //   memset(&wr, 0, sizeof(wr));
+  //   wr.wr_id = 0;
+  //   wr.sg_list = &sg;
+  //   wr.num_sge = 1;
+  //   wr.opcode = IBV_WR_RDMA_WRITE;
+  //   wr.send_flags = IBV_SEND_SIGNALED;
+  //   wr.wr.rdma.remote_addr = (uintptr_t)(peer_data.peer_mr.peer_addr);
+  //   wr.wr.rdma.rkey = peer_data.peer_mr.peer_rkey;
 
   printf("Clean-up remaining\n");
 

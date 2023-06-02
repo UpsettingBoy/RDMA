@@ -105,7 +105,8 @@ int main(int argc, char const *argv[]) {
   memset(msgs, 0xAF, msg_bytes);
 
   struct ibv_mr *memory =
-      ibv_reg_mr(domain, msgs, msg_bytes, IBV_ACCESS_LOCAL_WRITE);
+      ibv_reg_mr(domain, msgs, msg_bytes,
+                 IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE);
 
   // Create CQ
   struct ibv_cq *cq = ibv_create_cq(ctx, 1, NULL, NULL, 0);
@@ -115,7 +116,7 @@ int main(int argc, char const *argv[]) {
                                      .sq_sig_all = 0,
                                      .cap = {.max_send_wr = num_msgs,
                                              .max_recv_wr = 1,
-                                             .max_send_sge = 1,
+                                             .max_send_sge = num_msgs,
                                              .max_recv_sge = 1},
                                      .qp_type = IBV_QPT_RC};
   struct ibv_qp *qp = ibv_create_qp(domain, &qp_desc);
@@ -126,20 +127,18 @@ int main(int argc, char const *argv[]) {
   recv_qp(qp, peer_data);
   send_qp(qp);
 
-  struct ibv_sge sg;
+  struct ibv_sge *sg_sends = calloc(num_msgs, sizeof(struct ibv_send_wr));
   struct ibv_send_wr *wr_sends = calloc(num_msgs, sizeof(struct ibv_send_wr));
 
-  // My memory
-  memset(&sg, 0, sizeof(sg));
-  sg.addr = (uintptr_t)memory->addr;
-  sg.length = memory->length;
-  sg.lkey = memory->lkey;
-
   for (size_t i = 0; i < num_msgs; i++) {
+    sg_sends[i].addr = (uintptr_t)(memory->addr + (i * msg_bytes));
+    sg_sends[i].length = msg_bytes;
+    sg_sends[i].lkey = memory->lkey;
+
     // RDMA peer memory
     wr_sends[i].wr_id = i;
     wr_sends[i].next = (i == num_msgs - 1) ? NULL : wr_sends + i + 1;
-    wr_sends[i].sg_list = &sg;
+    wr_sends[i].sg_list = sg_sends + i;
     wr_sends[i].num_sge = 1;
     wr_sends[i].opcode = IBV_WR_RDMA_WRITE;
     wr_sends[i].send_flags = IBV_SEND_SIGNALED;
